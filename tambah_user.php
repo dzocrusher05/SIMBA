@@ -1,9 +1,5 @@
 <?php
 session_start();
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header("Location: index.php");
-    exit();
-}
 require 'includes/head.php';
 ?>
 <div class="flex">
@@ -22,10 +18,18 @@ require 'includes/head.php';
                         <input type="password" id="password" name="password" required class="w-full p-2 border rounded-md">
                     </div>
                     <div>
-                        <label for="peran" class="block font-medium">Peran</label>
+                        <label for="peran" class="block font-medium">Peran Akses</label>
                         <select id="peran" name="peran" required class="w-full p-2 border rounded-md">
                             <option value="user">User</option>
                             <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="notifikasi_peran" class="block font-medium">Peran Notifikasi</label>
+                        <select id="notifikasi_peran" name="notifikasi_peran" required class="w-full p-2 border rounded-md">
+                            <option value="none">Tidak Ada</option>
+                            <option value="admin_aset">Admin Aset</option>
+                            <option value="admin_persediaan">Admin Persediaan</option>
                         </select>
                     </div>
                 </div>

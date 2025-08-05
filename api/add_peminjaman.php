@@ -1,4 +1,5 @@
 <?php
+session_start();
 require '../config/db.php';
 require '../includes/fonnte_helper.php';
 header('Content-Type: application/json');
@@ -66,11 +67,12 @@ try {
         foreach ($asets as $aset) {
             $daftarAset .= "    - " . $aset['nama_bmn'] . "\n";
         }
-        $admin_stmt = $pdo->query("SELECT nomor_telepon FROM users WHERE peran = 'admin' LIMIT 1");
+        $admin_stmt = $pdo->query("SELECT nomor_telepon FROM users WHERE notifikasi_peran = 'admin_aset' LIMIT 1");
         $admin_phone = $admin_stmt->fetchColumn();
         if ($admin_phone) {
             $messageToAdmin = "🔔 *Notifikasi SIMBA* 🔔\n\n" .
-                "Pengajuan peminjaman baru telah masuk:\n\n" .
+                "Pengajuan peminjaman baru telah masuk:\n" .
+                "Nomor Surat Peminjaman: *{$nomor_spa}*\n\n" .
                 "👤 *Nama:* {$nama_peminjam}\n" .
                 "📞 *Telepon:* {$nomor_telepon_peminjam}\n" .
                 "🗓️ *Periode:* {$tanggal_peminjaman_str}\n" .
@@ -84,7 +86,7 @@ try {
     } catch (Exception $e) { /* Abaikan jika notifikasi gagal */
     }
 
-    echo json_encode(['success' => true, 'message' => 'Pengajuan peminjaman berhasil dikirim.']);
+    echo json_encode(['success' => true, 'message' => 'Pengajuan peminjaman berhasil dikirim. Nomor SPA Anda: ' . $nomor_spa]);
 } catch (Exception $e) {
     $pdo->rollBack();
     echo json_encode(['success' => false, 'message' => 'Terjadi kesalahan pada server: ' . $e->getMessage()]);

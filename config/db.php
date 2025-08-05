@@ -1,9 +1,9 @@
 <?php
 // Pengaturan untuk koneksi database
-$host = 'sql101.infinityfree.com';
-$dbname = 'if0_39634329_simba_db';
-$user = 'if0_39634329';
-$pass = 'Se7encyber'; // Biasanya kosong jika menggunakan XAMPP default
+$host = 'localhost';
+$dbname = 'simba_db';
+$user = 'root';
+$pass = ''; // Biasanya kosong jika menggunakan XAMPP default
 
 // Membuat koneksi menggunakan PDO untuk keamanan
 try {

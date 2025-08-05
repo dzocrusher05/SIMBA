@@ -1,4 +1,5 @@
 <?php
+session_start();
 require '../config/db.php';
 require '../includes/fonnte_helper.php';
 header('Content-Type: application/json');
@@ -54,9 +55,9 @@ try {
 
     $pdo->commit();
 
-    // 4. Kirim notifikasi ke Admin
+    // 4. Kirim notifikasi ke Admin Persediaan
     try {
-        $admin_stmt = $pdo->query("SELECT nomor_telepon FROM users WHERE peran = 'admin' LIMIT 1");
+        $admin_stmt = $pdo->query("SELECT nomor_telepon FROM users WHERE notifikasi_peran = 'admin_persediaan' LIMIT 1");
         $admin_phone = $admin_stmt->fetchColumn();
         if ($admin_phone) {
             $item_stmt = $pdo->prepare("
@@ -72,7 +73,8 @@ try {
                 $daftarItems .= "- {$detail_item['jumlah_diminta']} {$detail_item['satuan']} {$detail_item['nama_persediaan']}\n";
             }
             $messageToAdmin = "🔔 *Notifikasi Permintaan Persediaan* 🔔\n\n" .
-                "Permintaan baru telah masuk:\n\n" .
+                "Permintaan baru telah masuk:\n" .
+                "Nomor SPB: *{$nomor_spb}*\n\n" .
                 "👤 *Nama:* {$nama_pemohon}\n" .
                 "📞 *Telepon:* {$nomor_telepon_pemohon}\n\n" .
                 "📦 *Item yang Diminta:*\n" .
@@ -83,7 +85,7 @@ try {
         }
     } catch (Exception $e) { /* Abaikan jika notifikasi gagal */
     }
-    echo json_encode(['success' => true, 'message' => 'Permintaan berhasil dikirim.']);
+    echo json_encode(['success' => true, 'message' => 'Permintaan berhasil dikirim. Nomor SPB Anda: ' . $nomor_spb]);
 } catch (Exception $e) {
     $pdo->rollBack();
     echo json_encode(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()]);

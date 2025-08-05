@@ -106,7 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const renderPagination = (pagination) => {
     paginationContainer.innerHTML = "";
-    if (!pagination || pagination.total_pages <= 1) return;
+    if (pagination.total_pages <= 1) return;
     for (let i = 1; i <= pagination.total_pages; i++) {
       const btn = document.createElement("button");
       btn.textContent = i;
@@ -323,7 +323,7 @@ document.addEventListener("DOMContentLoaded", () => {
         openConfirmationModal(action, id);
       }
     }
-    if (target.classList.contains("print-btn")) {
+    if (e.target.classList.contains("print-btn")) {
       const permintaanId = target.dataset.id;
       const type = target.dataset.type;
       try {
