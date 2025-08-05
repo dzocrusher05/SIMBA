@@ -16,7 +16,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $user = $stmt->fetch();
 
     // Memverifikasi user dan password
-    // password_verify() membandingkan password input dengan hash di database
     if ($user && password_verify($password, $user['password'])) {
         // Jika berhasil, simpan data user ke session
         $_SESSION['user_id'] = $user['id'];
