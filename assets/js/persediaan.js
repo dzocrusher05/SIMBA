@@ -14,6 +14,20 @@ document.addEventListener("DOMContentLoaded", () => {
     toast = document.getElementById("toast-notification"),
     toastMessage = document.getElementById("toast-message");
 
+  // Elemen baru untuk Input Barang Masuk
+  const inputMasukModal = document.getElementById("input-masuk-modal");
+  const inputMasukForm = document.getElementById("input-masuk-form");
+  const inputMasukNamaItem = document.getElementById("input_masuk_nama_item");
+
+  // Elemen baru untuk Riwayat Stok
+  const riwayatStokModal = document.getElementById("riwayat-stok-modal");
+  const riwayatStokTableBody = document.getElementById(
+    "riwayat-stok-table-body"
+  );
+  const riwayatStokTitle = document.getElementById("riwayat-stok-title");
+
+  const { jsPDF } = window.jspdf;
+
   const fetchPersediaan = async () => {
     try {
       const response = await fetch(
@@ -41,6 +55,12 @@ document.addEventListener("DOMContentLoaded", () => {
         item.satuan
       }</td>
                 <td class="py-3 px-4 text-center">
+                    <button data-id="${item.id}" data-nama="${
+        item.nama_persediaan
+      }" class="input-masuk-btn text-green-500 p-1">Masuk</button>
+                    <button data-id="${item.id}" data-nama="${
+        item.nama_persediaan
+      }" class="riwayat-btn text-purple-500 p-1">Riwayat</button>
                     <button data-id="${
                       item.id
                     }" class="edit-btn text-blue-500 p-1">Edit</button>
@@ -137,6 +157,136 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.target.classList.contains("delete-btn")) {
       itemToDeleteId = e.target.dataset.id;
       deleteModal.classList.remove("hidden");
+    }
+    if (e.target.classList.contains("input-masuk-btn")) {
+      const id = e.target.dataset.id;
+      const nama = e.target.dataset.nama;
+      document.getElementById("input_masuk_persediaan_id").value = id;
+      inputMasukNamaItem.textContent = `Input untuk: ${nama}`;
+      inputMasukModal.classList.remove("hidden");
+    }
+    if (e.target.classList.contains("riwayat-btn")) {
+      const id = e.target.dataset.id;
+      const nama = e.target.dataset.nama;
+      riwayatStokTitle.textContent = `Riwayat Stok: ${nama}`;
+      riwayatStokModal.dataset.id = id;
+      fetchRiwayatPersediaan(id);
+    }
+  });
+
+  const fetchRiwayatPersediaan = async (id) => {
+    riwayatStokTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4">Memuat data...</td></tr>`;
+    riwayatStokModal.classList.remove("hidden");
+    try {
+      const response = await fetch(`api/get_riwayat_persediaan.php?id=${id}`);
+      const result = await response.json();
+      if (result.success) {
+        renderRiwayatTable(result.data);
+      } else {
+        riwayatStokTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500">${result.message}</td></tr>`;
+      }
+    } catch (error) {
+      riwayatStokTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500">Gagal memuat data riwayat.</td></tr>`;
+    }
+  };
+
+  const renderRiwayatTable = (data) => {
+    riwayatStokTableBody.innerHTML = "";
+    if (data.length === 0) {
+      riwayatStokTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">Tidak ada riwayat untuk item ini.</td></tr>`;
+      return;
+    }
+    data.forEach((item) => {
+      const jenis =
+        item.jenis_transaksi === "masuk"
+          ? `<span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">Masuk</span>`
+          : `<span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">Keluar</span>`;
+      riwayatStokTableBody.innerHTML += `
+              <tr class="border-b">
+                  <td class="py-2 px-4">${item.tanggal}</td>
+                  <td class="py-2 px-4">${jenis}</td>
+                  <td class="py-2 px-4">${item.jumlah}</td>
+                  <td class="py-2 px-4">${item.keterangan || "-"}</td>
+                  <td class="py-2 px-4">${item.nomor_dokumen || "-"}</td>
+              </tr>
+          `;
+    });
+  };
+
+  const generateRiwayatPersediaanPDF = (riwayatData) => {
+    const doc = new jsPDF();
+    const data = riwayatData.data;
+    const title = riwayatStokTitle.textContent;
+
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text(title, 105, 20, { align: "center" });
+    doc.setLineWidth(0.5);
+    doc.line(15, 25, 195, 25);
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+
+    const tableBody = data.map((item, index) => [
+      item.tanggal,
+      item.jenis_transaksi,
+      item.jumlah,
+      item.keterangan || "-",
+      item.nomor_dokumen || "-",
+    ]);
+
+    doc.autoTable({
+      head: [
+        ["Tanggal", "Jenis Transaksi", "Jumlah", "Keterangan", "Nomor Dokumen"],
+      ],
+      body: tableBody,
+      startY: 35,
+      theme: "grid",
+      headStyles: { fillColor: [44, 62, 80] },
+    });
+
+    doc.save(`${title.replace(/ /g, "_")}.pdf`);
+  };
+
+  document
+    .getElementById("close-input-masuk-modal")
+    .addEventListener("click", () => inputMasukModal.classList.add("hidden"));
+  document
+    .getElementById("close-riwayat-stok-modal")
+    .addEventListener("click", () => riwayatStokModal.classList.add("hidden"));
+  document
+    .getElementById("print-riwayat-stok-btn")
+    .addEventListener("click", async () => {
+      const id = riwayatStokModal.dataset.id;
+      try {
+        const response = await fetch(`api/get_riwayat_persediaan.php?id=${id}`);
+        const result = await response.json();
+        if (result.success) {
+          generateRiwayatPersediaanPDF(result);
+        } else {
+          showToast(result.message, false);
+        }
+      } catch (error) {
+        showToast("Gagal mengambil data untuk dicetak.", false);
+      }
+    });
+
+  inputMasukForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = new FormData(inputMasukForm);
+    formData.append("jenis_transaksi", "masuk");
+    const response = await fetch("api/add_riwayat_persediaan.php", {
+      method: "POST",
+      body: formData,
+    });
+    const result = await response.json();
+    if (result.success) {
+      inputMasukModal.classList.add("hidden");
+      inputMasukForm.reset();
+      fetchPersediaan();
+      showToast("Barang masuk berhasil dicatat!");
+    } else {
+      showToast(result.message, false);
     }
   });
 

@@ -14,8 +14,27 @@ document.addEventListener("DOMContentLoaded", () => {
   const cancelBtn = document.getElementById("cancel-action-btn");
   const toast = document.getElementById("toast-notification");
   const toastMessage = document.getElementById("toast-message");
+  const approveModal = document.getElementById("approve-modal");
+  const approveForm = document.getElementById("approve-form");
+  const approveItemsList = document.getElementById("approve-items-list");
+  const adminSignaturePadCanvas = document.getElementById(
+    "admin-signature-pad"
+  );
+  const adminSignaturePad = new SignaturePad(adminSignaturePadCanvas, {
+    backgroundColor: "rgb(255, 255, 255)",
+  });
+  const { jsPDF } = window.jspdf;
 
   // --- FUNGSI ---
+  const resizeAdminCanvas = () => {
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    adminSignaturePadCanvas.width = adminSignaturePadCanvas.offsetWidth * ratio;
+    adminSignaturePadCanvas.height =
+      adminSignaturePadCanvas.offsetHeight * ratio;
+    adminSignaturePadCanvas.getContext("2d").scale(ratio, ratio);
+    adminSignaturePad.clear();
+  };
+
   const fetchPeminjaman = async () => {
     try {
       const response = await fetch(
@@ -55,6 +74,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       let actions = "";
       let statusClass = "";
+      let printButton = "";
+
       switch (item.status_peminjaman) {
         case "Diajukan":
           statusClass = "bg-yellow-100 text-yellow-800";
@@ -64,12 +85,16 @@ document.addEventListener("DOMContentLoaded", () => {
         case "Disetujui":
           statusClass = "bg-blue-100 text-blue-800";
           actions = `<button data-id="${item.id}" data-action="return" class="action-btn bg-blue-500 text-white px-2 py-1 text-xs rounded hover:bg-blue-600">Kembalikan</button>`;
+          printButton = `<button data-id="${item.id}" data-type="approve" class="print-btn bg-blue-500 text-white px-2 py-1 text-xs rounded hover:bg-blue-600 ml-1">Cetak SPA</button>`;
           break;
         case "Dikembalikan":
           statusClass = "bg-gray-100 text-gray-800";
+          // Tombol cetak SPA akan muncul kembali saat status 'Dikembalikan'
+          printButton = `<button data-id="${item.id}" data-type="approve" class="print-btn bg-blue-500 text-white px-2 py-1 text-xs rounded hover:bg-blue-600 ml-1">Cetak SPA</button>`;
           break;
         case "Ditolak":
           statusClass = "bg-red-100 text-red-800";
+          printButton = `<button data-id="${item.id}" data-type="reject" class="print-btn bg-red-500 text-white px-2 py-1 text-xs rounded hover:bg-red-600 ml-1">Cetak Penolakan</button>`;
           break;
       }
 
@@ -106,7 +131,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <td class="py-3 px-4 align-top"><span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">${
         item.status_peminjaman || "-"
       }</span></td>
-                    <td class="py-3 px-4 text-center align-top">${actions}</td>
+                    <td class="py-3 px-4 text-center align-top">${actions}${printButton}</td>
                 </tr>
             `;
     });
@@ -143,12 +168,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const openConfirmationModal = (action, id) => {
     actionToConfirm = { action, id };
     const configs = {
-      approve: {
-        title: "Setujui Peminjaman",
-        message:
-          'Anda yakin ingin menyetujui pengajuan ini? Status aset akan berubah menjadi "Dipinjam".',
-        btnClass: "bg-green-600 hover:bg-green-700",
-      },
       reject: {
         title: "Tolak Peminjaman",
         message: "Anda yakin ingin menolak pengajuan ini?",
@@ -200,18 +219,212 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  const openApproveModal = async (peminjamanId) => {
+    document.getElementById("approve_peminjaman_id").value = peminjamanId;
+    approveItemsList.innerHTML = `Sedang memuat...`;
+
+    try {
+      const response = await fetch(
+        `api/get_detail_peminjaman.php?id=${peminjamanId}`
+      );
+      const result = await response.json();
+
+      if (result.success) {
+        approveItemsList.innerHTML = "";
+        result.data.items.forEach((item) => {
+          approveItemsList.innerHTML += `<div class="bg-gray-100 p-2 rounded-md text-sm">${item.nama_bmn} (${item.no_bmn})</div>`;
+        });
+        approveModal.classList.remove("hidden");
+        setTimeout(resizeAdminCanvas, 50);
+      } else {
+        showToast(result.message, false);
+      }
+    } catch (error) {
+      showToast("Gagal memuat detail peminjaman.", false);
+    }
+  };
+
+  const generatePeminjamanPDF = (peminjamanData, type) => {
+    const doc = new jsPDF();
+    const data = peminjamanData.data;
+
+    let title;
+    let titleColor = "#000000";
+    if (type === "approve") {
+      title = "SURAT PERSETUJUAN PEMINJAMAN ASET (SPA)";
+    } else {
+      title = "PEMBERITAHUAN PENOLAKAN PEMINJAMAN";
+      titleColor = "#ff0000";
+    }
+
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text("SIMBA - Sistem Informasi Manajemen BMN & Aset", 105, 20, {
+      align: "center",
+    });
+    doc.setLineWidth(0.5);
+    doc.line(15, 25, 195, 25);
+
+    doc.setFontSize(14);
+    doc.setTextColor(titleColor);
+    doc.text(title, 105, 35, { align: "center" });
+
+    doc.setFontSize(10);
+    doc.setTextColor("#000000"); // Reset warna teks
+    doc.setFont("helvetica", "normal");
+
+    if (type === "approve" && data.nomor_surat) {
+      doc.text(`Nomor: ${data.nomor_surat}`, 105, 42, { align: "center" });
+    }
+
+    doc.text(`Nama Peminjam: ${data.nama_peminjam}`, 15, 50);
+    doc.text(`Alasan Peminjaman: ${data.alasan_peminjaman}`, 15, 57);
+    doc.text(`Status: ${data.status_peminjaman}`, 195, 57, { align: "right" });
+
+    if (type === "approve") {
+      doc.text(
+        `Periode Pinjam: ${data.tanggal_pinjam} s/d ${data.tanggal_kembali}`,
+        15,
+        64
+      );
+    }
+
+    const tableBody = data.items.map((item, index) => [
+      index + 1,
+      item.nama_bmn,
+      item.no_bmn,
+    ]);
+    doc.autoTable({
+      head: [["No", "Nama Aset", "No. BMN"]],
+      body: tableBody,
+      startY: type === "approve" ? 75 : 65,
+      theme: "grid",
+      headStyles: { fillColor: [44, 62, 80] },
+    });
+
+    const finalY = doc.autoTable.previous.finalY + 20;
+    const peminjamX = 45;
+    const adminX = 165;
+    const adminName = "Nama Admin"; // Ganti dengan nama admin yang benar
+
+    doc.text("Peminjam,", peminjamX, finalY, { align: "center" });
+    if (data.tanda_tangan_peminjam) {
+      doc.addImage(
+        data.tanda_tangan_peminjam,
+        "PNG",
+        peminjamX - 30,
+        finalY + 5,
+        60,
+        20
+      );
+    }
+    doc.text(`(${data.nama_peminjam})`, peminjamX, finalY + 30, {
+      align: "center",
+    });
+
+    doc.text("Disetujui Oleh,", adminX, finalY, { align: "center" });
+    if (data.tanda_tangan_admin) {
+      doc.addImage(
+        data.tanda_tangan_admin,
+        "PNG",
+        adminX - 30,
+        finalY + 5,
+        60,
+        20
+      );
+      doc.text(`(${adminName})`, adminX, finalY + 30, {
+        align: "center",
+      });
+    } else {
+      doc.text("(_________________)", adminX, finalY + 30, {
+        align: "center",
+      });
+    }
+
+    const fileName = `${title.replace(/ /g, "_")}_${data.nama_peminjam.replace(
+      / /g,
+      "_"
+    )}.pdf`;
+    doc.save(fileName);
+  };
+
   // --- EVENT LISTENERS ---
   searchInput.addEventListener("input", () => {
     currentPage = 1;
     fetchPeminjaman();
   });
-  tableBody.addEventListener("click", (e) => {
+  tableBody.addEventListener("click", async (e) => {
     if (e.target.classList.contains("action-btn")) {
-      openConfirmationModal(e.target.dataset.action, e.target.dataset.id);
+      const action = e.target.dataset.action;
+      const id = e.target.dataset.id;
+      if (action === "approve") {
+        openApproveModal(id);
+      } else {
+        openConfirmationModal(action, id);
+      }
+    }
+    if (e.target.classList.contains("print-btn")) {
+      const peminjamanId = e.target.dataset.id;
+      const type = e.target.dataset.type;
+      try {
+        const response = await fetch(
+          `api/get_detail_peminjaman.php?id=${peminjamanId}`
+        );
+        const result = await response.json();
+        if (result.success) {
+          generatePeminjamanPDF(result, type);
+        } else {
+          showToast(result.message, false);
+        }
+      } catch (error) {
+        showToast("Gagal mengambil data untuk dicetak.", false);
+      }
     }
   });
   cancelBtn.addEventListener("click", () => modal.classList.add("hidden"));
   confirmBtn.addEventListener("click", performAction);
+  approveModal
+    .querySelector(".close-approve-modal")
+    .addEventListener("click", () => {
+      approveModal.classList.add("hidden");
+      adminSignaturePad.clear();
+    });
+  document
+    .getElementById("clear-admin-signature")
+    .addEventListener("click", () => {
+      adminSignaturePad.clear();
+    });
+  approveForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (adminSignaturePad.isEmpty()) {
+      alert("Tanda tangan admin wajib diisi.");
+      return;
+    }
+
+    const adminSignatureDataUrl = adminSignaturePad.toDataURL("image/png");
+    const peminjamanId = document.getElementById("approve_peminjaman_id").value;
+
+    const formData = new FormData();
+    formData.append("id", peminjamanId);
+    formData.append("tanda_tangan_admin", adminSignatureDataUrl);
+
+    try {
+      const response = await fetch("api/approve_peminjaman.php", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+      if (result.success) {
+        showToast("Peminjaman berhasil disetujui!");
+        approveModal.classList.add("hidden");
+        fetchPeminjaman();
+      } else {
+        showToast(result.message, false);
+      }
+    } catch (error) {
+      showToast("Terjadi kesalahan jaringan.", false);
+    }
+  });
 
   fetchPeminjaman();
 });

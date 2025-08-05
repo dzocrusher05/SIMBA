@@ -27,6 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const adminSignaturePad = new SignaturePad(adminSignaturePadCanvas, {
     backgroundColor: "rgb(255, 255, 255)",
   });
+  const nomorSpbDisplay = document.getElementById("nomor_spb_display");
 
   // === FUNGSI-FUNGSI ===
   const resizeAdminCanvas = () => {
@@ -68,12 +69,12 @@ document.addEventListener("DOMContentLoaded", () => {
           statusClass = "bg-yellow-100 text-yellow-800";
           actions = `<button data-id="${item.id}" data-action="approve" class="action-btn bg-green-500 text-white px-2 py-1 text-xs rounded hover:bg-green-600">Proses</button>
                                <button data-id="${item.id}" data-action="reject" class="action-btn bg-red-500 text-white px-2 py-1 text-xs rounded hover:bg-red-600 ml-1">Tolak</button>`;
-          printButton = `<button data-id="${item.id}" class="print-btn bg-gray-500 text-white px-2 py-1 text-xs rounded hover:bg-gray-600 ml-1">Cetak SPP</button>`;
+          printButton = `<button data-id="${item.id}" data-type="spb" class="print-btn bg-gray-500 text-white px-2 py-1 text-xs rounded hover:bg-gray-600 ml-1">Cetak SPB</button>`;
           break;
         case "Disetujui":
           statusClass = "bg-green-100 text-green-800";
-          const sppButton = `<button data-id="${item.id}" class="print-btn bg-gray-500 text-white px-2 py-1 text-xs rounded hover:bg-gray-600 ml-1">Cetak SPP</button>`;
-          const bbkButton = `<button data-id="${item.id}" class="print-btn bg-blue-500 text-white px-2 py-1 text-xs rounded hover:bg-blue-600 ml-1">Cetak SBBK</button>`;
+          const sppButton = `<button data-id="${item.id}" data-type="spb" class="print-btn bg-gray-500 text-white px-2 py-1 text-xs rounded hover:bg-gray-600 ml-1">Cetak SPB</button>`;
+          const bbkButton = `<button data-id="${item.id}" data-type="sbbk" class="print-btn bg-blue-500 text-white px-2 py-1 text-xs rounded hover:bg-blue-600 ml-1">Cetak SBBK</button>`;
           printButton = sppButton + bbkButton;
           break;
         case "Ditolak":
@@ -178,10 +179,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  const generateInvoicePDF = (permintaanData) => {
+  const generateInvoicePDF = (permintaanData, type) => {
     const doc = new jsPDF();
     const data = permintaanData.data;
-    const isApproved = data.status_permintaan === "Disetujui";
+
+    const isSPB = type === "spb";
+    const nomorSurat = isSPB ? data.nomor_spb : data.nomor_sbbk;
+    const title = isSPB
+      ? "SURAT PERMINTAAN BARANG"
+      : "SURAT BUKTI BARANG KELUAR (SBBK)";
+    const fileNamePrefix = isSPB ? "SPB" : "SBBK";
 
     doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
@@ -191,12 +198,12 @@ document.addEventListener("DOMContentLoaded", () => {
     doc.setLineWidth(0.5);
     doc.line(15, 25, 195, 25);
     doc.setFontSize(14);
-    const title = isApproved
-      ? "SURAT BUKTI BARANG KELUAR (SBBK)"
-      : "SURAT PERMINTAAN BARANG";
     doc.text(title, 105, 35, { align: "center" });
+
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
+    doc.text(`Nomor: ${nomorSurat}`, 105, 42, { align: "center" });
+
     doc.text(`Nama Penerima: ${data.nama_pemohon}`, 15, 50);
     doc.text(
       `Tanggal Permintaan: ${new Date(
@@ -256,19 +263,16 @@ document.addEventListener("DOMContentLoaded", () => {
       doc.text(`(${adminName})`, pengelolaX, finalY + 30, {
         align: "center",
       });
-    } else if (isApproved) {
-      // Jika sudah disetujui tapi belum ada ttd admin (kasus data lama),
-      // tetap tampilkan nama admin agar tidak kosong
-      doc.text(`(${adminName})`, pengelolaX, finalY + 30, { align: "center" });
     } else {
       doc.text("(_________________)", pengelolaX, finalY + 30, {
         align: "center",
       });
     }
 
-    const fileName = `${
-      isApproved ? "SBBK" : "SPB"
-    }_${data.nama_pemohon.replace(/ /g, "_")}.pdf`;
+    const fileName = `${fileNamePrefix}_${data.nama_pemohon.replace(
+      / /g,
+      "_"
+    )}.pdf`;
     doc.save(fileName);
   };
 
@@ -284,6 +288,14 @@ document.addEventListener("DOMContentLoaded", () => {
         result.data.items.forEach((item) => {
           approveItemsList.innerHTML += `<div class="grid grid-cols-[1fr_80px] gap-2 items-center"><label class="col-span-1 text-sm">${item.nama_persediaan} (${item.satuan})</label><input type="number" value="${item.jumlah_diminta}" min="0" name="item_${item.persediaan_id}" data-id="${item.persediaan_id}" class="item-approve-qty w-full p-1 border rounded text-center"></div>`;
         });
+
+        // Menampilkan nomor SPB yang sudah ada dari database
+        if (result.data.nomor_spb) {
+          nomorSpbDisplay.value = result.data.nomor_spb;
+        } else {
+          nomorSpbDisplay.value = "Belum Tersedia";
+        }
+
         approveModal.classList.remove("hidden");
         setTimeout(resizeAdminCanvas, 50);
       } else {
@@ -313,13 +325,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (target.classList.contains("print-btn")) {
       const permintaanId = target.dataset.id;
+      const type = target.dataset.type;
       try {
         const response = await fetch(
           `api/get_detail_permintaan.php?id=${permintaanId}`
         );
         const result = await response.json();
         if (result.success) {
-          generateInvoicePDF(result);
+          generateInvoicePDF(result, type);
         } else {
           showToast(result.message, false);
         }
@@ -341,10 +354,12 @@ document.addEventListener("DOMContentLoaded", () => {
         alert("Tanda tangan Pengelola Gudang wajib diisi.");
         return;
       }
+
       const adminSignatureDataUrl = adminSignaturePad.toDataURL("image/png");
       const permintaanId = document.getElementById(
         "approve_permintaan_id"
       ).value;
+
       const inputs = approveItemsList.querySelectorAll(".item-approve-qty");
       const itemsToApprove = [];
       inputs.forEach((input) => {
@@ -353,6 +368,7 @@ document.addEventListener("DOMContentLoaded", () => {
           itemsToApprove.push({ id: input.dataset.id, jumlah: jumlah });
         }
       });
+
       if (itemsToApprove.length === 0) {
         showToast(
           "Setujui setidaknya satu item dengan jumlah lebih dari 0.",
@@ -360,10 +376,12 @@ document.addEventListener("DOMContentLoaded", () => {
         );
         return;
       }
+
       const formData = new FormData();
       formData.append("permintaan_id", permintaanId);
       formData.append("items", JSON.stringify(itemsToApprove));
       formData.append("tanda_tangan_admin", adminSignatureDataUrl);
+
       try {
         const response = await fetch("api/approve_permintaan.php", {
           method: "POST",

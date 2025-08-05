@@ -8,6 +8,8 @@ if (!isset($_SESSION['user_id'])) {
 // Panggil head
 require 'includes/head.php';
 ?>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
 
 <div class="flex">
     <?php require 'includes/sidebar.php'; ?>
@@ -109,6 +111,32 @@ require 'includes/head.php';
         </div>
     </div>
 </div>
+
+<div id="riwayat-aset-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h2 id="riwayat-aset-title" class="text-2xl font-bold">Riwayat Aset</h2>
+            <div class="flex items-center gap-2">
+                <button id="print-riwayat-aset-btn" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-2 px-4 rounded-lg">Cetak PDF</button>
+                <button id="close-riwayat-aset-modal" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="py-2 px-4 text-left text-sm font-semibold">Tanggal</th>
+                        <th class="py-2 px-4 text-left text-sm font-semibold">Jenis Transaksi</th>
+                        <th class="py-2 px-4 text-left text-sm font-semibold">Keterangan</th>
+                        <th class="py-2 px-4 text-left text-sm font-semibold">Nomor Dokumen</th>
+                    </tr>
+                </thead>
+                <tbody id="riwayat-aset-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 
 <div id="toast-notification" class="fixed bottom-5 right-5 p-4 rounded-lg shadow-lg text-white hidden">
     <p id="toast-message"></p>

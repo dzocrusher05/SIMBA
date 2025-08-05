@@ -94,6 +94,14 @@ require 'includes/head.php';
         <form id="approve-form">
             <input type="hidden" id="approve_permintaan_id">
             <input type="hidden" id="tanda_tangan_admin" name="tanda_tangan_admin">
+
+            <div class="mb-4">
+                <div class="flex justify-between items-center mb-1">
+                    <label for="nomor_spb_display" class="block text-sm font-medium text-gray-700">Nomor SPB</label>
+                </div>
+                <input type="text" id="nomor_spb_display" disabled class="mt-1 block w-full p-2 border rounded-md bg-gray-100">
+            </div>
+
             <p class="text-sm mb-4 text-gray-600">Edit jumlah yang disetujui jika perlu.</p>
             <div id="approve-items-list" class="space-y-3 max-h-48 overflow-y-auto mb-4 border p-3 rounded-md bg-gray-50">
             </div>

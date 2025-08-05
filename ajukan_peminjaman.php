@@ -31,6 +31,14 @@
                 opacity: 1;
             }
         }
+
+        .modal {
+            display: none;
+        }
+
+        .modal.active {
+            display: flex;
+        }
     </style>
 </head>
 
@@ -61,6 +69,7 @@
             <div id="step-2" class="form-step">
                 <h2 class="text-xl font-semibold mb-4 text-slate-700">Langkah 2: Isi Detail Peminjaman</h2>
                 <form id="peminjaman-form">
+                    <input type="hidden" id="tanda_tangan_peminjam" name="tanda_tangan_peminjam">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <input type="text" name="nama_peminjam" placeholder="Nama Lengkap Peminjam" required class="p-3 border rounded-lg">
                         <input type="text" name="nomor_telepon_peminjam" placeholder="Nomor Telepon (WA) dengan format 62XXXXX" required class="p-3 border rounded-lg">
@@ -88,10 +97,17 @@
                         <label for="alasan_peminjaman" class="font-medium">Alasan Peminjaman</label>
                         <textarea id="alasan_peminjaman" name="alasan_peminjaman" rows="3" required class="w-full p-3 border rounded-lg mt-2"></textarea>
                     </div>
+                    <div class="mt-6">
+                        <h3 class="font-bold text-lg mb-2">Tanda Tangan Peminjam:</h3>
+                        <div class="border rounded-lg p-4 bg-gray-100">
+                            <p id="signature-status" class="text-center text-sm text-gray-500">Belum ada tanda tangan</p>
+                            <button type="button" id="open-signature-modal-btn" class="w-full bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 mt-2">Tambahkan Tanda Tangan</button>
+                        </div>
+                    </div>
                 </form>
                 <div class="flex justify-between mt-8">
                     <button id="back-to-step-1" class="bg-gray-200 text-gray-800 font-bold py-2 px-6 rounded-lg hover:bg-gray-300 transition-all">Kembali</button>
-                    <button id="next-to-step-3" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition-all">Lanjut ke Konfirmasi</button>
+                    <button id="submit-peminjaman" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-all">Lanjut ke Konfirmasi</button>
                 </div>
             </div>
 
@@ -105,28 +121,56 @@
                 </div>
                 <div class="flex justify-between mt-8">
                     <button id="back-to-step-2" class="bg-gray-200 text-gray-800 font-bold py-2 px-6 rounded-lg hover:bg-gray-300 transition-all">Kembali</button>
-                    <button id="submit-peminjaman" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-all">Kirim Pengajuan</button>
+                    <button id="submit-peminjaman-confirm" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-all">Kirim Pengajuan</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="signature-modal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+            <h2 class="text-2xl font-bold mb-4">Tanda Tangan Peminjam</h2>
+            <div class="border rounded-lg bg-white">
+                <canvas id="signature-pad" class="w-full h-40"></canvas>
+            </div>
+            <div class="flex justify-between mt-4">
+                <button type="button" id="clear-signature" class="text-sm text-blue-600 hover:underline">Bersihkan</button>
+                <div>
+                    <button type="button" id="close-signature-modal-btn" class="px-4 py-2 bg-gray-200 rounded-lg">Batal</button>
+                    <button type="button" id="save-signature-btn" class="px-4 py-2 bg-green-600 text-white rounded-lg">Simpan</button>
                 </div>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // --- Elemen & State ---
             const steps = document.querySelectorAll('.form-step');
             const asetGrid = document.getElementById('aset-grid');
-            const searchInput = document.getElementById('search-aset-input'); // BARU
+            const searchInput = document.getElementById('search-aset-input');
             const peminjamanForm = document.getElementById('peminjaman-form');
             let selectedAset = [];
+
+            const signatureModal = document.getElementById('signature-modal');
+            const openSignatureBtn = document.getElementById('open-signature-modal-btn');
+            const closeSignatureModalBtn = document.getElementById('close-signature-modal-btn');
+            const saveSignatureBtn = document.getElementById('save-signature-btn');
+            const clearSignatureBtn = document.getElementById('clear-signature');
+            const signatureStatus = document.getElementById('signature-status');
+            const canvas = document.getElementById('signature-pad');
+            const signaturePad = new SignaturePad(canvas, {
+                backgroundColor: 'rgb(255, 255, 255)'
+            });
 
             // --- Tombol Navigasi ---
             const nextToStep2Btn = document.getElementById('next-to-step-2');
             const backToStep1Btn = document.getElementById('back-to-step-1');
-            const nextToStep3Btn = document.getElementById('next-to-step-3');
+            const submitBtn = document.getElementById('submit-peminjaman');
+            const submitConfirmBtn = document.getElementById('submit-peminjaman-confirm');
             const backToStep2Btn = document.getElementById('back-to-step-2');
-            const submitBtn = document.getElementById('submit-peminjaman'); // BARU
 
             // --- Fungsi Navigasi ---
             const goToStep = (stepNumber) => {
@@ -137,11 +181,77 @@
             // --- Event Listener Navigasi ---
             nextToStep2Btn.addEventListener('click', () => goToStep(2));
             backToStep1Btn.addEventListener('click', () => goToStep(1));
-            nextToStep3Btn.addEventListener('click', () => {
+            submitBtn.addEventListener('click', () => {
+                // Konfirmasi bahwa tanda tangan sudah ada
+                if (!document.getElementById('tanda_tangan_peminjam').value) {
+                    alert('Mohon bubuhkan tanda tangan peminjam terlebih dahulu.');
+                    return;
+                }
                 displaySummary();
                 goToStep(3);
             });
             backToStep2Btn.addEventListener('click', () => goToStep(2));
+            submitConfirmBtn.addEventListener('click', async () => {
+                // ... FUNGSI KIRIM PENGAJUAN ...
+                submitConfirmBtn.disabled = true;
+                submitConfirmBtn.textContent = 'Mengirim...';
+
+                const formData = new FormData(peminjamanForm);
+                const asetIdsArray = selectedAset.map(aset => aset.id);
+                formData.append('aset_ids', JSON.stringify(asetIdsArray));
+                formData.append('tanggal_peminjaman', document.getElementById('tanggal_peminjaman').value);
+
+                try {
+                    const response = await fetch('api/add_peminjaman.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+
+                    if (result.success) {
+                        alert('Pengajuan Anda telah berhasil dikirim! Terima kasih.');
+                        window.location.reload();
+                    } else {
+                        alert('Gagal mengirim pengajuan: ' + result.message);
+                    }
+                } catch (error) {
+                    alert('Terjadi kesalahan koneksi. Silakan coba lagi.');
+                } finally {
+                    submitConfirmBtn.disabled = false;
+                    submitConfirmBtn.textContent = 'Kirim Pengajuan';
+                }
+            });
+
+            // --- Logika Modal Tanda Tangan ---
+            const resizeCanvas = () => {
+                const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                canvas.width = canvas.offsetWidth * ratio;
+                canvas.height = canvas.offsetHeight * ratio;
+                canvas.getContext("2d").scale(ratio, ratio);
+                signaturePad.clear();
+            };
+            openSignatureBtn.addEventListener('click', () => {
+                signatureModal.classList.add('active');
+                setTimeout(resizeCanvas, 50);
+            });
+            closeSignatureModalBtn.addEventListener('click', () => {
+                signatureModal.classList.remove('active');
+            });
+            saveSignatureBtn.addEventListener('click', () => {
+                if (signaturePad.isEmpty()) {
+                    alert('Kanvas tanda tangan masih kosong.');
+                    return;
+                }
+                const signatureDataUrl = signaturePad.toDataURL('image/png');
+                document.getElementById('tanda_tangan_peminjam').value = signatureDataUrl;
+                signatureStatus.textContent = "Tanda tangan telah ditambahkan";
+                signatureStatus.classList.remove("text-gray-500");
+                signatureStatus.classList.add("text-green-600");
+                signatureModal.classList.remove('active');
+            });
+            clearSignatureBtn.addEventListener('click', () => {
+                signaturePad.clear();
+            });
 
             // --- Inisialisasi Flatpickr & Lokasi ---
             flatpickr("#tanggal_peminjaman", {
@@ -209,43 +319,6 @@
                     summaryAset.innerHTML += `<li>${aset.nama}</li>`;
                 });
             };
-
-            // --- FUNGSI BARU: Kirim Pengajuan (Tombol Konfirmasi) ---
-            submitBtn.addEventListener('click', async () => {
-                // Validasi form
-                if (!peminjamanForm.checkValidity()) {
-                    peminjamanForm.reportValidity();
-                    return;
-                }
-
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Mengirim...';
-
-                const formData = new FormData(peminjamanForm);
-                const asetIdsArray = selectedAset.map(aset => aset.id);
-                formData.append('aset_ids', JSON.stringify(asetIdsArray));
-                formData.append('tanggal_peminjaman', document.getElementById('tanggal_peminjaman').value);
-
-                try {
-                    const response = await fetch('api/add_peminjaman.php', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const result = await response.json();
-
-                    if (result.success) {
-                        alert('Pengajuan Anda telah berhasil dikirim! Terima kasih.');
-                        window.location.reload();
-                    } else {
-                        alert('Gagal mengirim pengajuan: ' + result.message);
-                    }
-                } catch (error) {
-                    alert('Terjadi kesalahan koneksi. Silakan coba lagi.');
-                } finally {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'Kirim Pengajuan';
-                }
-            });
 
             // --- Panggil fungsi awal ---
             loadAset();

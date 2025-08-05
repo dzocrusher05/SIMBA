@@ -21,6 +21,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const toast = document.getElementById("toast-notification");
   const toastMessage = document.getElementById("toast-message");
 
+  const riwayatAsetModal = document.getElementById("riwayat-aset-modal");
+  const riwayatAsetTableBody = document.getElementById(
+    "riwayat-aset-table-body"
+  );
+  const riwayatAsetTitle = document.getElementById("riwayat-aset-title");
+
+  const { jsPDF } = window.jspdf;
+
   // --- Fungsi Utama untuk Fetch Data ---
   const fetchAsets = async () => {
     const searchQuery = searchInput.value;
@@ -60,6 +68,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     <td class="py-3 px-4">${aset.nama_bmn}</td>
                     <td class="py-3 px-4">${statusBadge}</td>
                     <td class="py-3 px-4 text-center">
+                        <button data-id="${aset.id}" data-nama="${
+        aset.nama_bmn
+      }" class="riwayat-btn text-purple-500 p-1">Riwayat</button>
                         <button data-id="${
                           aset.id
                         }" class="edit-btn text-blue-500 hover:text-blue-700 p-1">Edit</button>
@@ -94,6 +105,44 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  const fetchRiwayatAset = async (id) => {
+    riwayatAsetTableBody.innerHTML = `<tr><td colspan="4" class="text-center py-4">Memuat data...</td></tr>`;
+    riwayatAsetModal.classList.remove("hidden");
+    try {
+      const response = await fetch(`api/get_riwayat_aset.php?id=${id}`);
+      const result = await response.json();
+      if (result.success) {
+        renderRiwayatAsetTable(result.data);
+      } else {
+        riwayatAsetTableBody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-500">${result.message}</td></tr>`;
+      }
+    } catch (error) {
+      riwayatAsetTableBody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-500">Gagal memuat data riwayat.</td></tr>`;
+    }
+  };
+
+  const renderRiwayatAsetTable = (data) => {
+    riwayatAsetTableBody.innerHTML = "";
+    if (data.length === 0) {
+      riwayatAsetTableBody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">Tidak ada riwayat pergerakan untuk aset ini.</td></tr>`;
+      return;
+    }
+    data.forEach((item) => {
+      const jenis =
+        item.jenis_transaksi === "peminjaman"
+          ? `<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">Peminjaman</span>`
+          : `<span class="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs">Pengembalian</span>`;
+      riwayatAsetTableBody.innerHTML += `
+            <tr class="border-b">
+                <td class="py-2 px-4">${item.tanggal}</td>
+                <td class="py-2 px-4">${jenis}</td>
+                <td class="py-2 px-4">${item.keterangan || "-"}</td>
+                <td class="py-2 px-4">${item.nomor_dokumen || "-"}</td>
+            </tr>
+        `;
+    });
+  };
+
   // --- Fungsi untuk Toast Notification ---
   const showToast = (message, isSuccess = true) => {
     toastMessage.textContent = message;
@@ -106,11 +155,66 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 3000);
   };
 
+  const generateRiwayatAsetPDF = (riwayatData) => {
+    const doc = new jsPDF();
+    const data = riwayatData.data;
+    const title = riwayatAsetTitle.textContent;
+
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text(title, 105, 20, { align: "center" });
+    doc.setLineWidth(0.5);
+    doc.line(15, 25, 195, 25);
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+
+    const tableBody = data.map((item, index) => [
+      item.tanggal,
+      item.jenis_transaksi,
+      item.keterangan || "-",
+      item.nomor_dokumen || "-",
+    ]);
+
+    doc.autoTable({
+      head: [["Tanggal", "Jenis Transaksi", "Keterangan", "Nomor Dokumen"]],
+      body: tableBody,
+      startY: 35,
+      theme: "grid",
+      headStyles: { fillColor: [44, 62, 80] },
+    });
+
+    doc.save(`${title.replace(/ /g, "_")}.pdf`);
+  };
+
   // --- Event Listeners ---
   searchInput.addEventListener("input", () => {
     currentPage = 1;
     fetchAsets();
   });
+
+  document
+    .getElementById("close-riwayat-aset-modal")
+    .addEventListener("click", () => {
+      riwayatAsetModal.classList.add("hidden");
+    });
+
+  document
+    .getElementById("print-riwayat-aset-btn")
+    .addEventListener("click", async () => {
+      const id = document.getElementById("riwayat-aset-modal").dataset.id;
+      try {
+        const response = await fetch(`api/get_riwayat_aset.php?id=${id}`);
+        const result = await response.json();
+        if (result.success) {
+          generateRiwayatAsetPDF(result);
+        } else {
+          showToast(result.message, false);
+        }
+      } catch (error) {
+        showToast("Gagal mengambil data untuk dicetak.", false);
+      }
+    });
 
   document.querySelectorAll(".sortable").forEach((header) => {
     header.addEventListener("click", () => {
@@ -157,8 +261,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- Event Listener Dinamis untuk Tombol Aksi di Tabel ---
   tableBody.addEventListener("click", async (e) => {
     const target = e.target;
-
-    // --- Logika Tombol Edit ---
     if (target.classList.contains("edit-btn")) {
       const id = target.dataset.id;
       try {
@@ -177,11 +279,16 @@ document.addEventListener("DOMContentLoaded", () => {
         showToast("Gagal mengambil data untuk diedit.", false);
       }
     }
-
-    // --- Logika Tombol Hapus ---
     if (target.classList.contains("delete-btn")) {
       assetToDeleteId = target.dataset.id;
       deleteModal.classList.remove("hidden");
+    }
+    if (e.target.classList.contains("riwayat-btn")) {
+      const id = e.target.dataset.id;
+      const nama = e.target.dataset.nama;
+      riwayatAsetTitle.textContent = `Riwayat Aset: ${nama}`;
+      riwayatAsetModal.dataset.id = id;
+      fetchRiwayatAset(id);
     }
   });
 
@@ -245,6 +352,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (event.target === addModal) addModal.classList.add("hidden");
     if (event.target === editModal) editModal.classList.add("hidden");
     if (event.target === deleteModal) deleteModal.classList.add("hidden");
+    if (event.target === riwayatAsetModal)
+      riwayatAsetModal.classList.add("hidden");
   });
   editModal
     .querySelector(".close-modal")
