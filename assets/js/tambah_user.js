@@ -19,6 +19,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const cancelDeleteBtn = document.getElementById("cancel-delete-btn");
   let userToDeleteId = null;
 
+  const changePasswordModal = document.getElementById("change-password-modal");
+  const closePasswordModalBtn = document.getElementById("close-password-modal");
+  const changePasswordForm = document.getElementById("change-password-form");
+  const changePasswordSubmitBtn = document.getElementById(
+    "change-password-submit-btn"
+  );
+
   const toast = document.getElementById("toast-notification");
   const toastMessage = document.getElementById("toast-message");
 
@@ -69,6 +76,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }" class="edit-btn text-blue-500 p-1">Edit</button>
                         <button data-id="${user.id}" data-username="${
         user.username
+      }" class="password-btn text-yellow-500 p-1">Password</button>
+                        <button data-id="${user.id}" data-username="${
+        user.username
       }" class="delete-btn text-red-500 p-1">Hapus</button>
                     </td>
                 </tr>
@@ -88,6 +98,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   closeEditUserModalBtn.addEventListener("click", () => {
     editUserModal.classList.add("hidden");
+  });
+
+  closePasswordModalBtn.addEventListener("click", () => {
+    changePasswordModal.classList.add("hidden");
+    changePasswordForm.reset();
   });
 
   cancelDeleteBtn.addEventListener("click", () => {
@@ -155,6 +170,34 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  changePasswordForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = new FormData(changePasswordForm);
+    changePasswordSubmitBtn.disabled = true;
+    changePasswordSubmitBtn.textContent = "Menyimpan...";
+
+    try {
+      const response = await fetch("api/change_user_password.php", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        showToast("Kata sandi berhasil diperbarui!");
+        changePasswordForm.reset();
+        changePasswordModal.classList.add("hidden");
+      } else {
+        showToast(result.message || "Gagal memperbarui kata sandi.", false);
+      }
+    } catch (error) {
+      showToast("Terjadi kesalahan jaringan.", false);
+    } finally {
+      changePasswordSubmitBtn.disabled = false;
+      changePasswordSubmitBtn.textContent = "Ubah Kata Sandi";
+    }
+  });
+
   usersTableBody.addEventListener("click", (e) => {
     const target = e.target;
     if (target.classList.contains("edit-btn")) {
@@ -169,6 +212,10 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById("edit_notifikasi_peran").value = notifikasi;
 
       editUserModal.classList.remove("hidden");
+    } else if (target.classList.contains("password-btn")) {
+      const id = target.dataset.id;
+      document.getElementById("password_user_id").value = id;
+      changePasswordModal.classList.remove("hidden");
     } else if (target.classList.contains("delete-btn")) {
       userToDeleteId = target.dataset.id;
       deleteUsernameSpan.textContent = target.dataset.username;

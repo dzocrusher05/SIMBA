@@ -125,6 +125,29 @@ require 'includes/head.php';
     </div>
 </div>
 
+<div id="change-password-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+        <h2 class="text-2xl font-bold mb-4">Ubah Kata Sandi</h2>
+        <form id="change-password-form">
+            <input type="hidden" id="password_user_id" name="user_id">
+            <div class="space-y-4">
+                <div>
+                    <label for="new_password" class="block font-medium">Kata Sandi Baru</label>
+                    <input type="password" id="new_password" name="new_password" required class="w-full p-2 border rounded-md">
+                </div>
+                <div>
+                    <label for="confirm_password" class="block font-medium">Konfirmasi Kata Sandi</label>
+                    <input type="password" id="confirm_password" name="confirm_password" required class="w-full p-2 border rounded-md">
+                </div>
+            </div>
+            <div class="mt-6 text-right">
+                <button type="button" id="close-password-modal" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg">Batal</button>
+                <button type="submit" id="change-password-submit-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg">Ubah Kata Sandi</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div id="toast-notification" class="fixed bottom-5 right-5 p-4 rounded-lg shadow-lg text-white hidden">
     <p id="toast-message"></p>
 </div>
