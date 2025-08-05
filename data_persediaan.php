@@ -8,19 +8,38 @@ require 'includes/head.php';
 ?>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
 <div class="flex">
     <?php require 'includes/sidebar.php'; ?>
     <main class="main-content flex-1 p-8">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-bold text-slate-800">Data Persediaan</h1>
-            <div>
+            <div class="flex gap-2">
                 <button id="open-add-modal" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
                     </svg>
                     Tambah Item
                 </button>
+                <button id="open-import-persediaan-modal-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414-1.414z" clip-rule="evenodd" />
+                    </svg>
+                    Import Excel
+                </button>
+                <a href="api/export_data.php?type=persediaan" id="export-persediaan-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414-1.414z" clip-rule="evenodd" />
+                    </svg>
+                    Export Data
+                </a>
+                <a href="api/download_template.php?type=persediaan" id="download-persediaan-template-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414-1.414z" clip-rule="evenodd" />
+                    </svg>
+                    Unduh Template
+                </a>
             </div>
         </div>
         <div class="mb-4">
@@ -93,12 +112,12 @@ require 'includes/head.php';
                 <input type="number" id="input_masuk_jumlah" name="jumlah" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
             </div>
             <div class="mb-4">
-                <label for="input_masuk_nomor_dokumen" class="block text-sm font-medium text-gray-700">Nomor Surat/Dokumen</label>
-                <input type="text" id="input_masuk_nomor_dokumen" name="nomor_dokumen" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
-            </div>
-            <div class="mb-4">
                 <label for="input_masuk_keterangan" class="block text-sm font-medium text-gray-700">Keterangan (Opsional)</label>
                 <input type="text" id="input_masuk_keterangan" name="keterangan" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+            </div>
+            <div class="mb-4">
+                <label for="input_masuk_nomor_dokumen" class="block text-sm font-medium text-gray-700">Nomor Dokumen</label>
+                <input type="text" id="input_masuk_nomor_dokumen" name="nomor_dokumen" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
             </div>
             <div class="flex justify-end gap-4">
                 <button type="button" id="close-input-masuk-modal" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Batal</button>
@@ -131,6 +150,25 @@ require 'includes/head.php';
                 <tbody id="riwayat-stok-table-body"></tbody>
             </table>
         </div>
+    </div>
+</div>
+
+<div id="import-persediaan-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold">Import Data Persediaan</h2>
+            <button id="close-import-persediaan-modal-btn" class="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+        </div>
+        <form id="import-persediaan-form" enctype="multipart/form-data">
+            <input type="hidden" name="file_type" value="persediaan">
+            <div class="mb-4">
+                <label for="persediaan-file" class="block text-sm font-medium text-gray-700">Pilih file Excel (.xlsx)</label>
+                <input type="file" id="persediaan-file" name="excel_file" required accept=".xlsx" class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            </div>
+            <div class="flex justify-end">
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Import</button>
+            </div>
+        </form>
     </div>
 </div>
 

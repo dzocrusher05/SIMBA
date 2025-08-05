@@ -27,6 +27,9 @@ document.addEventListener("DOMContentLoaded", () => {
   );
   const riwayatAsetTitle = document.getElementById("riwayat-aset-title");
 
+  const importAsetModal = document.getElementById("import-aset-modal");
+  const importAsetForm = document.getElementById("import-aset-form");
+
   const { jsPDF } = window.jspdf;
 
   // --- Fungsi Utama untuk Fetch Data ---
@@ -89,19 +92,52 @@ document.addEventListener("DOMContentLoaded", () => {
     paginationContainer.innerHTML = "";
     if (pagination.total_pages <= 1) return;
 
-    for (let i = 1; i <= pagination.total_pages; i++) {
-      const pageButton = document.createElement("button");
-      pageButton.textContent = i;
-      pageButton.className = `px-3 py-1 mx-1 rounded-md text-sm ${
-        i === pagination.current_page
+    const { current_page, total_pages } = pagination;
+    const max_visible_pages = 5; // Jumlah halaman yang selalu terlihat di sekitar halaman saat ini
+
+    const createButton = (page, text) => {
+      const btn = document.createElement("button");
+      btn.textContent = text || page;
+      btn.className = `px-3 py-1 mx-1 rounded-md text-sm ${
+        page === current_page
           ? "bg-blue-600 text-white"
           : "bg-white text-gray-700 hover:bg-gray-100 border"
       }`;
-      pageButton.addEventListener("click", () => {
-        currentPage = i;
+      btn.onclick = () => {
+        currentPage = page;
         fetchAsets();
-      });
-      paginationContainer.appendChild(pageButton);
+      };
+      return btn;
+    };
+
+    if (total_pages <= max_visible_pages + 2) {
+      for (let i = 1; i <= total_pages; i++) {
+        paginationContainer.appendChild(createButton(i));
+      }
+    } else {
+      let start_page = Math.max(
+        1,
+        current_page - Math.floor(max_visible_pages / 2)
+      );
+      let end_page = Math.min(total_pages, start_page + max_visible_pages - 1);
+
+      if (end_page === total_pages) {
+        start_page = Math.max(1, total_pages - max_visible_pages + 1);
+      }
+
+      for (let i = start_page; i <= end_page; i++) {
+        paginationContainer.appendChild(createButton(i));
+      }
+
+      if (end_page < total_pages) {
+        if (end_page < total_pages - 1) {
+          const ellipsis = document.createElement("span");
+          ellipsis.textContent = "...";
+          ellipsis.className = "px-3 py-1 mx-1 text-sm text-gray-700";
+          paginationContainer.appendChild(ellipsis);
+        }
+        paginationContainer.appendChild(createButton(total_pages));
+      }
     }
   };
 
@@ -202,7 +238,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document
     .getElementById("print-riwayat-aset-btn")
     .addEventListener("click", async () => {
-      const id = document.getElementById("riwayat-aset-modal").dataset.id;
+      const id = riwayatAsetModal.dataset.id;
       try {
         const response = await fetch(`api/get_riwayat_aset.php?id=${id}`);
         const result = await response.json();
@@ -215,6 +251,16 @@ document.addEventListener("DOMContentLoaded", () => {
         showToast("Gagal mengambil data untuk dicetak.", false);
       }
     });
+
+  document
+    .getElementById("open-import-aset-modal-btn")
+    .addEventListener("click", () =>
+      importAsetModal.classList.remove("hidden")
+    );
+
+  document
+    .getElementById("close-import-aset-modal-btn")
+    .addEventListener("click", () => importAsetModal.classList.add("hidden"));
 
   document.querySelectorAll(".sortable").forEach((header) => {
     header.addEventListener("click", () => {
@@ -252,6 +298,34 @@ document.addEventListener("DOMContentLoaded", () => {
         showToast("Aset berhasil ditambahkan!");
       } else {
         showToast(result.message || "Gagal menambahkan aset.", false);
+      }
+    } catch (error) {
+      showToast("Terjadi kesalahan jaringan.", false);
+    }
+  });
+
+  importAsetForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = new FormData(importAsetForm);
+
+    if (!formData.get("excel_file").name) {
+      showToast("Mohon pilih file Excel terlebih dahulu.", false);
+      return;
+    }
+
+    try {
+      const response = await fetch("api/import_data.php", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+      if (result.success) {
+        importAsetModal.classList.add("hidden");
+        importAsetForm.reset();
+        fetchAsets();
+        showToast(result.message);
+      } else {
+        showToast(result.message, false);
       }
     } catch (error) {
       showToast("Terjadi kesalahan jaringan.", false);
@@ -354,6 +428,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (event.target === deleteModal) deleteModal.classList.add("hidden");
     if (event.target === riwayatAsetModal)
       riwayatAsetModal.classList.add("hidden");
+    if (event.target === importAsetModal)
+      importAsetModal.classList.add("hidden");
   });
   editModal
     .querySelector(".close-modal")

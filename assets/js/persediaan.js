@@ -26,6 +26,14 @@ document.addEventListener("DOMContentLoaded", () => {
   );
   const riwayatStokTitle = document.getElementById("riwayat-stok-title");
 
+  // Elemen baru untuk Impor Excel
+  const importPersediaanModal = document.getElementById(
+    "import-persediaan-modal"
+  );
+  const importPersediaanForm = document.getElementById(
+    "import-persediaan-form"
+  );
+
   const { jsPDF } = window.jspdf;
 
   const fetchPersediaan = async () => {
@@ -74,19 +82,53 @@ document.addEventListener("DOMContentLoaded", () => {
   const renderPagination = (pagination) => {
     paginationContainer.innerHTML = "";
     if (pagination.total_pages <= 1) return;
-    for (let i = 1; i <= pagination.total_pages; i++) {
+
+    const { current_page, total_pages } = pagination;
+    const max_visible_pages = 5;
+
+    const createButton = (page, text) => {
       const btn = document.createElement("button");
-      btn.textContent = i;
+      btn.textContent = text || page;
       btn.className = `px-3 py-1 mx-1 rounded-md text-sm ${
-        i === pagination.current_page
+        page === current_page
           ? "bg-blue-600 text-white"
           : "bg-white text-gray-700 hover:bg-gray-100 border"
       }`;
       btn.onclick = () => {
-        currentPage = i;
+        currentPage = page;
         fetchPersediaan();
       };
-      paginationContainer.appendChild(btn);
+      return btn;
+    };
+
+    if (total_pages <= max_visible_pages + 2) {
+      for (let i = 1; i <= total_pages; i++) {
+        paginationContainer.appendChild(createButton(i));
+      }
+    } else {
+      let start_page = Math.max(
+        1,
+        current_page - Math.floor(max_visible_pages / 2)
+      );
+      let end_page = Math.min(total_pages, start_page + max_visible_pages - 1);
+
+      if (end_page === total_pages) {
+        start_page = Math.max(1, total_pages - max_visible_pages + 1);
+      }
+
+      for (let i = start_page; i <= end_page; i++) {
+        paginationContainer.appendChild(createButton(i));
+      }
+
+      if (end_page < total_pages) {
+        if (end_page < total_pages - 1) {
+          const ellipsis = document.createElement("span");
+          ellipsis.textContent = "...";
+          ellipsis.className = "px-3 py-1 mx-1 text-sm text-gray-700";
+          paginationContainer.appendChild(ellipsis);
+        }
+        paginationContainer.appendChild(createButton(total_pages));
+      }
     }
   };
 
@@ -128,6 +170,18 @@ document.addEventListener("DOMContentLoaded", () => {
     .getElementById("close-modal-btn")
     .addEventListener("click", () => formModal.classList.add("hidden"));
 
+  document
+    .getElementById("open-import-persediaan-modal-btn")
+    .addEventListener("click", () =>
+      importPersediaanModal.classList.remove("hidden")
+    );
+
+  document
+    .getElementById("close-import-persediaan-modal-btn")
+    .addEventListener("click", () =>
+      importPersediaanModal.classList.add("hidden")
+    );
+
   persediaanForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const url = currentEditId
@@ -148,6 +202,35 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     } else {
       showToast(result.message, false);
+    }
+  });
+
+  importPersediaanForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = new FormData(importPersediaanForm);
+
+    // Periksa apakah file sudah dipilih
+    if (!formData.get("excel_file").name) {
+      showToast("Mohon pilih file Excel terlebih dahulu.", false);
+      return;
+    }
+
+    try {
+      const response = await fetch("api/import_data.php", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+      if (result.success) {
+        importPersediaanModal.classList.add("hidden");
+        importPersediaanForm.reset();
+        fetchPersediaan();
+        showToast(result.message);
+      } else {
+        showToast(result.message, false);
+      }
+    } catch (error) {
+      showToast("Terjadi kesalahan jaringan.", false);
     }
   });
 
