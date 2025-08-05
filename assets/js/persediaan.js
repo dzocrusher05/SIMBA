@@ -2,6 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentPage = 1,
     currentSortBy = "id",
     currentSortOrder = "DESC",
+    itemsPerPage = 10,
     itemToDeleteId = null,
     currentEditId = null;
   const searchInput = document.getElementById("search-input"),
@@ -33,13 +34,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const importPersediaanForm = document.getElementById(
     "import-persediaan-form"
   );
+  const printAllRiwayatBtn = document.getElementById("print-all-riwayat-btn");
 
   const { jsPDF } = window.jspdf;
+
+  const itemsPerPageSelect = document.getElementById("items-per-page");
 
   const fetchPersediaan = async () => {
     try {
       const response = await fetch(
-        `api/get_persediaan.php?page=${currentPage}&search=${searchInput.value}&sort_by=${currentSortBy}&sort_order=${currentSortOrder}`
+        `api/get_persediaan.php?page=${currentPage}&search=${searchInput.value}&sort_by=${currentSortBy}&sort_order=${currentSortOrder}&limit=${itemsPerPage}`
       );
       const result = await response.json();
       renderTable(result.data);
@@ -57,7 +61,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     data.forEach((item, index) => {
       tableBody.innerHTML += `<tr class="border-b hover:bg-gray-50">
-                <td class="py-3 px-4">${(currentPage - 1) * 10 + index + 1}</td>
+                <td class="py-3 px-4">${
+                  (currentPage - 1) * itemsPerPage + index + 1
+                }</td>
                 <td class="py-3 px-4">${item.nama_persediaan}</td>
                 <td class="py-3 px-4">${item.stok}</td><td class="py-3 px-4">${
         item.satuan
@@ -84,7 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (pagination.total_pages <= 1) return;
 
     const { current_page, total_pages } = pagination;
-    const max_visible_pages = 5;
+    const max_visible_pages = 5; // Jumlah halaman yang selalu terlihat di sekitar halaman saat ini
 
     const createButton = (page, text) => {
       const btn = document.createElement("button");
@@ -99,6 +105,13 @@ document.addEventListener("DOMContentLoaded", () => {
         fetchPersediaan();
       };
       return btn;
+    };
+
+    const addEllipsis = () => {
+      const ellipsis = document.createElement("span");
+      ellipsis.textContent = "...";
+      ellipsis.className = "px-3 py-1 mx-1 text-sm text-gray-700";
+      paginationContainer.appendChild(ellipsis);
     };
 
     if (total_pages <= max_visible_pages + 2) {
@@ -116,17 +129,19 @@ document.addEventListener("DOMContentLoaded", () => {
         start_page = Math.max(1, total_pages - max_visible_pages + 1);
       }
 
+      // Tombol halaman pertama dan elipsis di awal
+      if (start_page > 1) {
+        paginationContainer.appendChild(createButton(1));
+        if (start_page > 2) addEllipsis();
+      }
+
       for (let i = start_page; i <= end_page; i++) {
         paginationContainer.appendChild(createButton(i));
       }
 
+      // Tombol halaman terakhir dan elipsis di akhir
       if (end_page < total_pages) {
-        if (end_page < total_pages - 1) {
-          const ellipsis = document.createElement("span");
-          ellipsis.textContent = "...";
-          ellipsis.className = "px-3 py-1 mx-1 text-sm text-gray-700";
-          paginationContainer.appendChild(ellipsis);
-        }
+        if (end_page < total_pages - 1) addEllipsis();
         paginationContainer.appendChild(createButton(total_pages));
       }
     }
@@ -331,6 +346,78 @@ document.addEventListener("DOMContentLoaded", () => {
     doc.save(`${title.replace(/ /g, "_")}.pdf`);
   };
 
+  const generateAllRiwayatPersediaanPDF = async () => {
+    try {
+      const response = await fetch("api/get_all_riwayat_persediaan.php");
+      const result = await response.json();
+
+      if (!result.success) {
+        showToast(result.message, false);
+        return;
+      }
+
+      const doc = new jsPDF();
+      let y = 30;
+      let isFirstPage = true;
+
+      result.data.forEach((item, index) => {
+        if (!isFirstPage) {
+          doc.addPage();
+          y = 30;
+        }
+
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text(`Kartu Stok: ${item.nama_persediaan}`, 105, y, {
+          align: "center",
+        });
+        y += 10;
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Stok Saat Ini: ${item.stok} ${item.satuan}`, 15, y);
+        y += 10;
+
+        if (item.riwayat && item.riwayat.length > 0) {
+          const tableBody = item.riwayat.map((riwayat) => [
+            riwayat.tanggal,
+            riwayat.jenis_transaksi,
+            riwayat.jumlah,
+            riwayat.keterangan || "-",
+            riwayat.nomor_dokumen || "-",
+          ]);
+          doc.autoTable({
+            head: [
+              [
+                "Tanggal",
+                "Jenis Transaksi",
+                "Jumlah",
+                "Keterangan",
+                "Nomor Dokumen",
+              ],
+            ],
+            body: tableBody,
+            startY: y + 5,
+            theme: "grid",
+            headStyles: { fillColor: [44, 62, 80] },
+            pageBreak: "auto",
+          });
+        } else {
+          doc.text("Tidak ada riwayat untuk item ini.", 15, y + 5);
+        }
+        isFirstPage = false;
+      });
+
+      if (result.data.length > 0) {
+        doc.save("Semua_Kartu_Stok.pdf");
+        showToast("Berhasil mencetak semua kartu stok!");
+      } else {
+        showToast("Tidak ada data persediaan untuk dicetak.", false);
+      }
+    } catch (error) {
+      showToast("Gagal mengambil data untuk dicetak.", false);
+    }
+  };
+
   document
     .getElementById("close-input-masuk-modal")
     .addEventListener("click", () => inputMasukModal.classList.add("hidden"));
@@ -353,6 +440,10 @@ document.addEventListener("DOMContentLoaded", () => {
         showToast("Gagal mengambil data untuk dicetak.", false);
       }
     });
+
+  document
+    .getElementById("print-all-riwayat-btn")
+    .addEventListener("click", generateAllRiwayatPersediaanPDF);
 
   inputMasukForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -410,5 +501,10 @@ document.addEventListener("DOMContentLoaded", () => {
       fetchPersediaan();
     })
   );
+  itemsPerPageSelect.addEventListener("change", () => {
+    itemsPerPage = parseInt(itemsPerPageSelect.value);
+    currentPage = 1;
+    fetchPersediaan();
+  });
   fetchPersediaan();
 });

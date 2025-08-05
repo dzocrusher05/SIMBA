@@ -42,8 +42,17 @@ require 'includes/head.php';
                 </a>
             </div>
         </div>
-        <div class="mb-4">
+        <div class="mb-4 flex gap-4 items-center">
             <input type="text" id="search-input" placeholder="Cari nama item..." class="w-full max-w-sm p-2 border border-gray-300 rounded-lg">
+            <div>
+                <label for="items-per-page" class="text-sm text-gray-700">Tampilkan per halaman:</label>
+                <select id="items-per-page" class="p-2 border rounded-md">
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
         </div>
         <div class="bg-white p-6 rounded-lg shadow-sm">
             <div class="overflow-x-auto">
@@ -62,6 +71,13 @@ require 'includes/head.php';
             </div>
             <div id="pagination-container" class="mt-4 flex justify-end"></div>
         </div>
+
+        <button id="print-all-riwayat-btn" class="mt-8 bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg inline-flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 2a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V4a2 2 0 00-2-2h-2zM4 6a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V8a2 2 0 00-2-2H4zm8 0a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V8a2 2 0 00-2-2h-2zM4 14a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H4zm8 0a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z" />
+            </svg>
+            Cetak Semua Kartu Stok
+        </button>
     </main>
 </div>
 

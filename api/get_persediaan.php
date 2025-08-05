@@ -1,14 +1,17 @@
 <?php
 require '../config/db.php';
 
-$limit = 10;
+// --- Pengaturan Paginasi ---
+$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $offset = ($page > 0) ? ($page - 1) * $limit : 0;
 
+// --- Pengaturan Filter & Sort ---
 $search = isset($_GET['search']) ? $_GET['search'] : '';
 $sort_by = isset($_GET['sort_by']) && in_array($_GET['sort_by'], ['nama_persediaan', 'stok']) ? $_GET['sort_by'] : 'id';
 $sort_order = isset($_GET['sort_order']) && in_array(strtoupper($_GET['sort_order']), ['ASC', 'DESC']) ? $_GET['sort_order'] : 'DESC';
 
+// --- Membangun Query ---
 $sql = "SELECT * FROM persediaan";
 $count_sql = "SELECT COUNT(*) FROM persediaan";
 
@@ -38,6 +41,7 @@ $count_stmt->execute();
 $total_records = $count_stmt->fetchColumn();
 $total_pages = ceil($total_records / $limit);
 
+// --- Mengirim Respons JSON ---
 header('Content-Type: application/json');
 echo json_encode([
     'data' => $persediaan,
