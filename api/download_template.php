@@ -19,8 +19,10 @@ if ($type === 'persediaan') {
     $sheet->setCellValue('C1', 'Satuan');
     $filename = 'template_persediaan.xlsx';
 } elseif ($type === 'aset') {
-    $sheet->setCellValue('A1', 'No_BMN');
-    $sheet->setCellValue('B1', 'Nama_BMN');
+    $sheet->setCellValue('A1', 'Kode_BMN');
+    $sheet->setCellValue('B1', 'NUP');
+    $sheet->setCellValue('C1', 'Nama_BMN');
+    $sheet->setCellValue('D1', 'Merek');
     $filename = 'template_aset.xlsx';
 }
 

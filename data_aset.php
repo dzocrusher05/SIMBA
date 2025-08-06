@@ -44,8 +44,17 @@ require 'includes/head.php';
             </div>
         </div>
 
-        <div class="mb-4">
-            <input type="text" id="search-aset" placeholder="Cari berdasarkan Nama atau No. BMN..." class="w-full max-w-sm p-2 border border-gray-300 rounded-lg">
+        <div class="mb-4 flex gap-4 items-center">
+            <input type="text" id="search-aset" placeholder="Cari berdasarkan Nama, Kode, atau NUP..." class="w-full max-w-sm p-2 border border-gray-300 rounded-lg">
+            <div>
+                <label for="items-per-page" class="text-sm text-gray-700">Tampilkan per halaman:</label>
+                <select id="items-per-page" class="p-2 border rounded-md">
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
         </div>
 
         <div class="bg-white p-6 rounded-lg shadow-sm">
@@ -54,15 +63,17 @@ require 'includes/head.php';
                     <thead class="bg-gray-100">
                         <tr>
                             <th class="text-left py-3 px-4 uppercase font-semibold text-sm text-slate-600">No</th>
-                            <th class="text-left py-3 px-4 uppercase font-semibold text-sm text-slate-600 cursor-pointer hover:bg-gray-200 sortable" data-sort="no_bmn">No. BMN</th>
+                            <th class="text-left py-3 px-4 uppercase font-semibold text-sm text-slate-600 cursor-pointer hover:bg-gray-200 sortable" data-sort="kode_bmn">Kode BMN</th>
+                            <th class="text-left py-3 px-4 uppercase font-semibold text-sm text-slate-600 cursor-pointer hover:bg-gray-200 sortable" data-sort="nup">NUP</th>
                             <th class="text-left py-3 px-4 uppercase font-semibold text-sm text-slate-600 cursor-pointer hover:bg-gray-200 sortable" data-sort="nama_bmn">Nama BMN</th>
+                            <th class="text-left py-3 px-4 uppercase font-semibold text-sm text-slate-600 cursor-pointer hover:bg-gray-200 sortable" data-sort="merek">Merek</th>
                             <th class="text-left py-3 px-4 uppercase font-semibold text-sm text-slate-600 cursor-pointer hover:bg-gray-200 sortable" data-sort="status">Status</th>
                             <th class="text-center py-3 px-4 uppercase font-semibold text-sm text-slate-600">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="aset-table-body">
                         <tr>
-                            <td colspan="5" class="text-center py-4">Memuat data...</td>
+                            <td colspan="7" class="text-center py-4">Memuat data...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -77,12 +88,20 @@ require 'includes/head.php';
         <h2 class="text-2xl font-bold mb-4">Tambah Aset Baru</h2>
         <form id="add-aset-form">
             <div class="mb-4">
-                <label for="no_bmn" class="block text-sm font-medium text-gray-700">No. BMN</label>
-                <input type="text" id="no_bmn" name="no_bmn" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <label for="kode_bmn" class="block text-sm font-medium text-gray-700">Kode BMN</label>
+                <input type="text" id="kode_bmn" name="kode_bmn" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div class="mb-4">
+                <label for="nup" class="block text-sm font-medium text-gray-700">NUP</label>
+                <input type="text" id="nup" name="nup" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
             </div>
             <div class="mb-4">
                 <label for="nama_bmn" class="block text-sm font-medium text-gray-700">Nama BMN</label>
                 <input type="text" id="nama_bmn" name="nama_bmn" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div class="mb-4">
+                <label for="merek" class="block text-sm font-medium text-gray-700">Merek</label>
+                <input type="text" id="merek" name="merek" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
             </div>
             <div class="flex justify-end gap-4">
                 <button type="button" class="close-modal px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Batal</button>
@@ -98,12 +117,20 @@ require 'includes/head.php';
         <form id="edit-aset-form">
             <input type="hidden" id="edit_aset_id" name="edit_aset_id">
             <div class="mb-4">
-                <label for="edit_no_bmn" class="block text-sm font-medium text-gray-700">No. BMN</label>
-                <input type="text" id="edit_no_bmn" name="edit_no_bmn" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                <label for="edit_kode_bmn" class="block text-sm font-medium text-gray-700">Kode BMN</label>
+                <input type="text" id="edit_kode_bmn" name="edit_kode_bmn" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+            </div>
+            <div class="mb-4">
+                <label for="edit_nup" class="block text-sm font-medium text-gray-700">NUP</label>
+                <input type="text" id="edit_nup" name="edit_nup" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
             </div>
             <div class="mb-4">
                 <label for="edit_nama_bmn" class="block text-sm font-medium text-gray-700">Nama BMN</label>
                 <input type="text" id="edit_nama_bmn" name="edit_nama_bmn" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+            </div>
+            <div class="mb-4">
+                <label for="edit_merek" class="block text-sm font-medium text-gray-700">Merek</label>
+                <input type="text" id="edit_merek" name="edit_merek" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
             </div>
             <div class="mb-4">
                 <label for="edit_status" class="block text-sm font-medium text-gray-700">Status</label>

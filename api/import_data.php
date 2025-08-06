@@ -36,10 +36,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['excel_file'])) {
             }
             echo json_encode(['success' => true, 'message' => 'Data persediaan berhasil diimpor!']);
         } elseif ($file_type === 'aset') {
-            $stmt = $pdo->prepare("INSERT INTO aset (no_bmn, nama_bmn, status) VALUES (?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO aset (kode_bmn, nup, nama_bmn, merek, status) VALUES (?, ?, ?, ?, 'Tersedia')");
             foreach ($rows as $row) {
                 if (!empty($row[0])) {
-                    $stmt->execute([$row[0], $row[1], 'Tersedia']);
+                    $stmt->execute([$row[0], $row[1], $row[2], $row[3]]);
                 }
             }
             echo json_encode(['success' => true, 'message' => 'Data aset berhasil diimpor!']);

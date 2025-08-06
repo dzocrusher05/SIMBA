@@ -2,23 +2,23 @@
 require '../config/db.php';
 
 // --- Pengaturan Paginasi ---
-$limit = 10; // Jumlah data per halaman
+$limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 10;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $offset = ($page > 0) ? ($page - 1) * $limit : 0;
 
 // --- Pengaturan Filter & Sort ---
 $search = isset($_GET['search']) ? $_GET['search'] : '';
-$sort_by = isset($_GET['sort_by']) && in_array($_GET['sort_by'], ['no_bmn', 'nama_bmn', 'status']) ? $_GET['sort_by'] : 'id';
+$sort_by = isset($_GET['sort_by']) && in_array($_GET['sort_by'], ['kode_bmn', 'nup', 'nama_bmn', 'merek', 'status']) ? $_GET['sort_by'] : 'id';
 $sort_order = isset($_GET['sort_order']) && in_array(strtoupper($_GET['sort_order']), ['ASC', 'DESC']) ? $_GET['sort_order'] : 'DESC';
 
 // --- Membangun Query ---
-$sql = "SELECT * FROM aset";
+$sql = "SELECT id, kode_bmn, nup, nama_bmn, merek, status FROM aset";
 $count_sql = "SELECT COUNT(*) FROM aset";
 
 // Tambahkan filter jika ada
 if (!empty($search)) {
-    $sql .= " WHERE nama_bmn LIKE :search OR no_bmn LIKE :search";
-    $count_sql .= " WHERE nama_bmn LIKE :search OR no_bmn LIKE :search";
+    $sql .= " WHERE nama_bmn LIKE :search OR kode_bmn LIKE :search OR nup LIKE :search OR merek LIKE :search";
+    $count_sql .= " WHERE nama_bmn LIKE :search OR kode_bmn LIKE :search OR nup LIKE :search OR merek LIKE :search";
 }
 
 // Tambahkan sorting

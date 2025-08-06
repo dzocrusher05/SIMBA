@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentPage = 1;
   let currentSortBy = "id";
   let currentSortOrder = "DESC";
+  let itemsPerPage = 10;
   const searchInput = document.getElementById("search-aset");
   const tableBody = document.getElementById("aset-table-body");
   const paginationContainer = document.getElementById("pagination-container");
@@ -32,10 +33,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const { jsPDF } = window.jspdf;
 
+  const itemsPerPageSelect = document.getElementById("items-per-page");
+
   // --- Fungsi Utama untuk Fetch Data ---
   const fetchAsets = async () => {
     const searchQuery = searchInput.value;
-    const url = `api/get_asets.php?page=${currentPage}&search=${searchQuery}&sort_by=${currentSortBy}&sort_order=${currentSortOrder}`;
+    const url = `api/get_asets.php?page=${currentPage}&search=${searchQuery}&sort_by=${currentSortBy}&sort_order=${currentSortOrder}&limit=${itemsPerPage}`;
 
     try {
       const response = await fetch(url);
@@ -44,7 +47,7 @@ document.addEventListener("DOMContentLoaded", () => {
       renderPagination(result.pagination);
     } catch (error) {
       console.error("Error fetching data:", error);
-      tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4">Gagal memuat data.</td></tr>`;
+      tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4">Gagal memuat data.</td></tr>`;
     }
   };
 
@@ -52,7 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const renderTable = (data) => {
     tableBody.innerHTML = ""; // Kosongkan tabel
     if (data.length === 0) {
-      tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">Tidak ada data ditemukan.</td></tr>`;
+      tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-gray-500">Tidak ada data ditemukan.</td></tr>`;
       return;
     }
 
@@ -65,10 +68,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const row = `
                 <tr class="border-b border-gray-200 hover:bg-gray-50">
                     <td class="py-3 px-4">${
-                      (currentPage - 1) * 10 + index + 1
+                      (currentPage - 1) * itemsPerPage + index + 1
                     }</td>
-                    <td class="py-3 px-4">${aset.no_bmn}</td>
+                    <td class="py-3 px-4">${aset.kode_bmn}</td>
+                    <td class="py-3 px-4">${aset.nup || "-"}</td>
                     <td class="py-3 px-4">${aset.nama_bmn}</td>
+                    <td class="py-3 px-4">${aset.merek || "-"}</td>
                     <td class="py-3 px-4">${statusBadge}</td>
                     <td class="py-3 px-4 text-center">
                         <button data-id="${aset.id}" data-nama="${
@@ -87,7 +92,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
-  // --- Fungsi untuk Merender Paginasi ---
   const renderPagination = (pagination) => {
     paginationContainer.innerHTML = "";
     if (pagination.total_pages <= 1) return;
@@ -110,6 +114,13 @@ document.addEventListener("DOMContentLoaded", () => {
       return btn;
     };
 
+    const addEllipsis = () => {
+      const ellipsis = document.createElement("span");
+      ellipsis.textContent = "...";
+      ellipsis.className = "px-3 py-1 mx-1 text-sm text-gray-700";
+      paginationContainer.appendChild(ellipsis);
+    };
+
     if (total_pages <= max_visible_pages + 2) {
       for (let i = 1; i <= total_pages; i++) {
         paginationContainer.appendChild(createButton(i));
@@ -125,17 +136,19 @@ document.addEventListener("DOMContentLoaded", () => {
         start_page = Math.max(1, total_pages - max_visible_pages + 1);
       }
 
+      // Tombol halaman pertama dan elipsis di awal
+      if (start_page > 1) {
+        paginationContainer.appendChild(createButton(1));
+        if (start_page > 2) addEllipsis();
+      }
+
       for (let i = start_page; i <= end_page; i++) {
         paginationContainer.appendChild(createButton(i));
       }
 
+      // Tombol halaman terakhir dan elipsis di akhir
       if (end_page < total_pages) {
-        if (end_page < total_pages - 1) {
-          const ellipsis = document.createElement("span");
-          ellipsis.textContent = "...";
-          ellipsis.className = "px-3 py-1 mx-1 text-sm text-gray-700";
-          paginationContainer.appendChild(ellipsis);
-        }
+        if (end_page < total_pages - 1) addEllipsis();
         paginationContainer.appendChild(createButton(total_pages));
       }
     }
@@ -342,8 +355,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await response.json();
         if (result.success) {
           document.getElementById("edit_aset_id").value = result.data.id;
-          document.getElementById("edit_no_bmn").value = result.data.no_bmn;
+          document.getElementById("edit_kode_bmn").value = result.data.kode_bmn;
+          document.getElementById("edit_nup").value = result.data.nup;
           document.getElementById("edit_nama_bmn").value = result.data.nama_bmn;
+          document.getElementById("edit_merek").value = result.data.merek;
           document.getElementById("edit_status").value = result.data.status;
           editModal.classList.remove("hidden");
         } else {

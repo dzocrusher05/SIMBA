@@ -25,10 +25,10 @@ try {
 
         $filename = 'data_persediaan.xlsx';
     } elseif ($type === 'aset') {
-        $stmt = $pdo->query("SELECT no_bmn, nama_bmn, status FROM aset");
+        $stmt = $pdo->query("SELECT kode_bmn, nup, nama_bmn, merek, status FROM aset");
         $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $header = ['No. BMN', 'Nama BMN', 'Status'];
+        $header = ['Kode BMN', 'NUP', 'Nama BMN', 'Merek', 'Status'];
         $sheet->fromArray($header, NULL, 'A1');
         $sheet->fromArray($data, NULL, 'A2');
 
