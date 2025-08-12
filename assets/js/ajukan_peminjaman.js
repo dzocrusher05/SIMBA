@@ -24,8 +24,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Tombol Navigasi & Form ---
   const nextToStep2Btn = document.getElementById("next-to-step-2");
+  const nextToStep3Btn = document.getElementById("next-to-step-3"); // Tombol baru
   const backToStep1Btn = document.getElementById("back-to-step-1");
-  const submitBtn = document.getElementById("submit-peminjaman");
+  const backToStep2Btn = document.getElementById("back-to-step-2");
+  const submitBtn = document.getElementById("submit-peminjaman-confirm"); // Tombol submit final
 
   // --- Toast Notification ---
   const toast = document.getElementById("toast-notification");
@@ -132,13 +134,53 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Event Listener Navigasi ---
   nextToStep2Btn.addEventListener("click", () => {
+    // Cek validitas form pada langkah 1
+    const requiredInputsStep1 =
+      peminjamanForm.querySelectorAll("#step-1 [required]");
+    let isStep1Valid = true;
+    requiredInputsStep1.forEach((input) => {
+      if (!input.value) {
+        isStep1Valid = false;
+      }
+    });
+
+    if (!isStep1Valid) {
+      peminjamanForm.reportValidity();
+      return;
+    }
+
     if (selectedAset.length === 0) {
       alert("Pilih setidaknya satu aset.");
       return;
     }
     goToStep(2);
   });
+
+  nextToStep3Btn.addEventListener("click", () => {
+    const requiredInputsStep2 =
+      peminjamanForm.querySelectorAll("#step-2 [required]");
+    let isStep2Valid = true;
+    requiredInputsStep2.forEach((input) => {
+      if (!input.value) {
+        isStep2Valid = false;
+      }
+    });
+    if (!isStep2Valid) {
+      peminjamanForm.reportValidity();
+      return;
+    }
+
+    if (!tandaTanganPeminjamHiddenInput.value) {
+      alert("Mohon bubuhkan tanda tangan Anda.");
+      return;
+    }
+
+    displaySummary();
+    goToStep(3);
+  });
+
   backToStep1Btn.addEventListener("click", () => goToStep(1));
+  backToStep2Btn.addEventListener("click", () => goToStep(2));
 
   // --- Logika Modal Tanda Tangan ---
   const resizeCanvas = () => {
@@ -173,15 +215,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Logika Form Submission ---
   submitBtn.addEventListener("click", async () => {
-    if (!peminjamanForm.checkValidity()) {
-      peminjamanForm.reportValidity();
-      return;
-    }
-    if (!tandaTanganPeminjamHiddenInput.value) {
-      alert("Mohon bubuhkan tanda tangan Anda.");
-      return;
-    }
-
     submitBtn.disabled = true;
     submitBtn.textContent = "Mengirim...";
 

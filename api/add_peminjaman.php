@@ -9,85 +9,84 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+// Ambil data dari form
 $nama_peminjam = $_POST['nama_peminjam'] ?? '';
 $nomor_telepon_peminjam = $_POST['nomor_telepon_peminjam'] ?? '';
-$alasan_peminjaman = $_POST['alasan_peminjaman'] ?? '';
-$lokasi_peminjaman = $_POST['lokasi_peminjaman'] ?? '';
-$lokasi_kustom = $_POST['lokasi_kustom'] ?? '';
-$tanggal_peminjaman_str = $_POST['tanggal_peminjaman'] ?? '';
-$aset_ids_json = $_POST['aset_ids'] ?? '[]';
-$tanda_tangan_peminjam = $_POST['tanda_tangan_peminjam'] ?? null;
-$aset_ids = json_decode($aset_ids_json, true);
+$tanda_tangan = $_POST['tanda_tangan_peminjam'] ?? '';
+$aset_ids = $_POST['aset_ids'] ?? [];
+$lokasi = $_POST['lokasi_peminjaman'] ?? '';
+$alasan = $_POST['alasan_peminjaman'] ?? '';
+$tanggal_mulai = $_POST['tanggal_mulai'] ?? '';
+$tanggal_selesai = $_POST['tanggal_selesai'] ?? '';
 
-if (empty($nama_peminjam) || empty($nomor_telepon_peminjam) || empty($alasan_peminjaman) || empty($tanggal_peminjaman_str) || empty($aset_ids) || empty($tanda_tangan_peminjam)) {
-    echo json_encode(['success' => false, 'message' => 'Semua data wajib diisi.']);
+// Validasi data
+if (empty($nama_peminjam) || empty($nomor_telepon_peminjam) || empty($tanda_tangan) || empty($aset_ids)) {
+    echo json_encode(['success' => false, 'message' => 'Semua data wajib diisi, pastikan minimal satu aset dipilih.']);
     exit;
 }
-
-$lokasi_final = ($lokasi_peminjaman === 'lainnya') ? $lokasi_kustom : $lokasi_peminjaman;
-if (empty($lokasi_final)) {
-    echo json_encode(['success' => false, 'message' => 'Lokasi tujuan harus diisi.']);
-    exit;
-}
-
-$dates = explode(' to ', $tanggal_peminjaman_str);
-$tanggal_pinjam_mysql = date('Y-m-d', strtotime($dates[0]));
-$tanggal_kembali_mysql = count($dates) == 2 ? date('Y-m-d', strtotime($dates[1])) : $tanggal_pinjam_mysql;
 
 $pdo->beginTransaction();
 try {
-    // --- Logika Generate Nomor SPA Otomatis ---
+    // --- Logika Generate Nomor Surat Peminjaman (SPM) Otomatis ---
     $bulan_sekarang = date('m');
     $stmt_nomor = $pdo->query("SELECT peminjaman FROM nomor FOR UPDATE");
     $nomor_terakhir = (int)($stmt_nomor->fetchColumn() ?? 0);
     $nomor_berikutnya = $nomor_terakhir + 1;
-    $nomor_spa = "SPA/672845/" . $bulan_sekarang . "/" . $nomor_berikutnya;
+    // Format Nomor: SPM / Kode Instansi / Bulan / Nomor Urut
+    $nomor_surat_peminjaman = "SPM/672845/" . $bulan_sekarang . "/" . $nomor_berikutnya;
 
-    $stmt1 = $pdo->prepare("INSERT INTO peminjaman (nama_peminjam, nomor_telepon_peminjam, alasan_peminjaman, lokasi_peminjaman, tanggal_pengajuan, tanggal_pinjam, tanggal_kembali, status_peminjaman, tanda_tangan_peminjam, nomor_surat) VALUES (?, ?, ?, ?, CURDATE(), ?, ?, 'Diajukan', ?, ?)");
-    $stmt1->execute([$nama_peminjam, $nomor_telepon_peminjam, $alasan_peminjaman, $lokasi_final, $tanggal_pinjam_mysql, $tanggal_kembali_mysql, $tanda_tangan_peminjam, $nomor_spa]);
+    // 1. Simpan data peminjaman utama dengan nomor surat yang baru
+    $stmt1 = $pdo->prepare(
+        "INSERT INTO peminjaman (nama_peminjam, nomor_telepon_peminjam, lokasi_peminjaman, alasan_peminjaman, tanggal_pengajuan, tanggal_pinjam, tanggal_kembali, status_peminjaman, tanda_tangan_peminjam, nomor_surat) 
+         VALUES (?, ?, ?, ?, CURDATE(), ?, ?, 'Diajukan', ?, ?)"
+    );
+    $stmt1->execute([$nama_peminjam, $nomor_telepon_peminjam, $lokasi, $alasan, $tanggal_mulai, $tanggal_selesai, $tanda_tangan, $nomor_surat_peminjaman]);
     $peminjaman_id = $pdo->lastInsertId();
 
+    // 2. Simpan detail aset yang dipinjam ke tabel `detail_peminjaman`
     $stmt2 = $pdo->prepare("INSERT INTO detail_peminjaman (peminjaman_id, aset_id) VALUES (?, ?)");
+    $stmt_update_aset = $pdo->prepare("UPDATE aset SET status = 'Dipinjam' WHERE id = ?");
+
     foreach ($aset_ids as $aset_id) {
         $stmt2->execute([$peminjaman_id, $aset_id]);
+        $stmt_update_aset->execute([$aset_id]);
     }
 
-    // Update counter nomor di tabel baru
+    // 3. Update counter nomor di tabel `nomor`
     $stmt_update_nomor = $pdo->prepare("UPDATE nomor SET peminjaman = ?");
     $stmt_update_nomor->execute([$nomor_berikutnya]);
 
     $pdo->commit();
 
+    // 4. Kirim notifikasi ke Admin
     try {
-        $placeholders = implode(',', array_fill(0, count($aset_ids), '?'));
-        $aset_stmt = $pdo->prepare("SELECT nama_bmn FROM aset WHERE id IN ($placeholders)");
-        $aset_stmt->execute($aset_ids);
-        $asets = $aset_stmt->fetchAll(PDO::FETCH_ASSOC);
-        $daftarAset = "";
-        foreach ($asets as $aset) {
-            $daftarAset .= "    - " . $aset['nama_bmn'] . "\n";
+        $admin_phone = '0812XXXXXXXX'; // GANTI DENGAN NOMOR WA ADMIN
+
+        $inQuery = implode(',', array_fill(0, count($aset_ids), '?'));
+        $item_stmt = $pdo->prepare("SELECT nama_bmn FROM aset WHERE id IN ($inQuery)");
+        $item_stmt->execute($aset_ids);
+        $detail_items = $item_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $daftarItems = "";
+        foreach ($detail_items as $detail_item) {
+            $daftarItems .= "- " . $detail_item['nama_bmn'] . "\n";
         }
-        $admin_stmt = $pdo->query("SELECT nomor_telepon FROM users WHERE notifikasi_peran = 'admin_aset' LIMIT 1");
-        $admin_phone = $admin_stmt->fetchColumn();
-        if ($admin_phone) {
-            $messageToAdmin = "🔔 *Notifikasi SIMBA* 🔔\n\n" .
-                "Pengajuan peminjaman baru telah masuk:\n" .
-                "Nomor Surat Peminjaman: *{$nomor_spa}*\n\n" .
-                "👤 *Nama:* {$nama_peminjam}\n" .
-                "📞 *Telepon:* {$nomor_telepon_peminjam}\n" .
-                "🗓️ *Periode:* {$tanggal_peminjaman_str}\n" .
-                "📍 *Lokasi:* {$lokasi_final}\n" .
-                "📝 *Alasan:* {$alasan_peminjaman}\n\n" .
-                "📦 *Aset yang Diajukan:*\n" .
-                "{$daftarAset}\n" .
-                "Mohon untuk segera ditindaklanjuti melalui panel admin. Terima kasih.";
-            sendWhatsApp($admin_phone, $messageToAdmin);
-        }
+
+        $messageToAdmin = "🔔 *Notifikasi Peminjaman Aset Baru* 🔔\n\n" .
+            "Pengajuan baru telah masuk:\n" .
+            "Nomor Surat: *{$nomor_surat_peminjaman}*\n\n" .
+            "👤 *Nama:* {$nama_peminjam}\n" .
+            "📞 *Telepon:* {$nomor_telepon_peminjam}\n\n" .
+            "📦 *Aset yang Dipinjam:*\n" .
+            "{$daftarItems}\n" .
+            "Mohon untuk segera ditindaklanjuti melalui panel admin. Terima kasih.";
+
+        sendWhatsApp($admin_phone, $messageToAdmin);
     } catch (Exception $e) { /* Abaikan jika notifikasi gagal */
     }
 
-    echo json_encode(['success' => true, 'message' => 'Pengajuan peminjaman berhasil dikirim. Nomor SPA Anda: ' . $nomor_spa]);
+    echo json_encode(['success' => true, 'message' => 'Permintaan peminjaman berhasil dikirim. Nomor Surat Anda: ' . $nomor_surat_peminjaman]);
 } catch (Exception $e) {
     $pdo->rollBack();
-    echo json_encode(['success' => false, 'message' => 'Terjadi kesalahan pada server: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()]);
 }

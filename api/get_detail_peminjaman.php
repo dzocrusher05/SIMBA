@@ -1,28 +1,29 @@
 <?php
-require '../config/db.php';
 header('Content-Type: application/json');
+require '../config/db.php'; // Menggunakan koneksi PDO
 
+// Pastikan ID peminjaman dikirim melalui GET
 if (!isset($_GET['id'])) {
-    echo json_encode(['success' => false, 'message' => 'ID Peminjaman tidak disediakan.']);
+    echo json_encode(['success' => false, 'message' => 'ID Peminjaman tidak ditemukan.']);
     exit;
 }
 
-$peminjaman_id = $_GET['id'];
+$peminjaman_id = (int)$_GET['id'];
 
 try {
-    // Ambil data peminjaman utama
+    // 1. Ambil data utama dari tabel peminjaman
     $stmt_main = $pdo->prepare("SELECT * FROM peminjaman WHERE id = ?");
     $stmt_main->execute([$peminjaman_id]);
-    $peminjaman = $stmt_main->fetch(PDO::FETCH_ASSOC);
+    $peminjaman_data = $stmt_main->fetch(PDO::FETCH_ASSOC);
 
-    if (!$peminjaman) {
+    if (!$peminjaman_data) {
         echo json_encode(['success' => false, 'message' => 'Data peminjaman tidak ditemukan.']);
         exit;
     }
 
-    // Ambil detail aset yang dipinjam
+    // 2. Ambil semua aset yang terkait dengan peminjaman ini
     $stmt_items = $pdo->prepare("
-        SELECT a.nama_bmn, a.no_bmn, a.id as aset_id
+        SELECT a.id, a.nama_bmn, a.kode_bmn as no_bmn
         FROM detail_peminjaman dp
         JOIN aset a ON dp.aset_id = a.id
         WHERE dp.peminjaman_id = ?
@@ -30,8 +31,18 @@ try {
     $stmt_items->execute([$peminjaman_id]);
     $items = $stmt_items->fetchAll(PDO::FETCH_ASSOC);
 
-    $peminjaman['items'] = $items;
-    echo json_encode(['success' => true, 'data' => $peminjaman]);
+    // Gabungkan data utama dengan daftar item/aset
+    $peminjaman_data['items'] = $items;
+
+    // Kirim respons sukses
+    echo json_encode([
+        'success' => true,
+        'data' => $peminjaman_data
+    ]);
 } catch (PDOException $e) {
-    echo json_encode(['success' => false, 'message' => 'Gagal mengambil detail data.']);
+    // Kirim pesan error jika query gagal
+    echo json_encode([
+        'success' => false,
+        'message' => 'Gagal mengambil detail dari database: ' . $e->getMessage()
+    ]);
 }
